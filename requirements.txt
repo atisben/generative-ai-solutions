@@ -1,0 +1,5 @@
+python-dotenv==1.0.1
+google-cloud-bigquery==3.27.0
+google-cloud-storage==2.19.0
+google-cloud-aiplatform==1.74.0
+google-generativeai==0.8.3
