@@ -3,3 +3,10 @@ google-cloud-bigquery==3.27.0
 google-cloud-storage==2.19.0
 google-cloud-aiplatform==1.74.0
 google-generativeai==0.8.3
+jupyter==1.1.1
+nbconvert==7.16.4
+pillow==11.0.0
+google-genai==0.3.0
+langchain-google-genai==2.0.7
+langchain-google-vertexai==2.0.9
+Markdown==3.7
