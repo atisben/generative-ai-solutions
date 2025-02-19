@@ -2,6 +2,8 @@ from loguru import logger
 from pathlib import Path
 import os
 import sys
+from dotenv import load_dotenv
+load_dotenv(override=True)
 
 class Config:
     SEED=42
@@ -19,15 +21,20 @@ class Config:
         RERANKER = "ms-marco-MiniLM-L-12-v2"
         LLM = "llama3.2"
         CONTEXTUALIZE_CHUNKS = True
-        N_SEMANTIC_RETULST = 5
+        N_SEMANTIC_RESULTS = 5
         N_BM25_RESULTS = 5
 
     class Chatbot:
         N_CONTEXT_RESULTS = 3
 
     class Path:
-        APP_HOME = Path(os.getenv("APP_HOME"), Path(__file__).parent.parent)
+        APP_HOME = Path(Path(__file__).parent.parent, os.getenv("APP_HOME"))
         DATA_DIR = APP_HOME/"data"
+        DB_DIR = DATA_DIR/"chroma_langchain_db"
+    
+    class VectorStore:
+        COLLECTION_NAME = "example_collection"
+
 
 def configure_logging():  
     config = {  
@@ -46,7 +53,5 @@ def configure_logging():
   
     # Optionally, you can add more customization or set log level  
     logger.info("Logging is configured.")  
+    return logger
   
-# Call the function to configure logging  
-configure_logging()  
-logger.info("This is a test log message.")  

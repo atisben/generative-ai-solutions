@@ -106,7 +106,7 @@ if prompt := st.chat_input("Type your message ..."):
         message_placeholder.status(random.choice(LOADING_MESSAGES), state="running")
         for event in chatbot.ask(prompt, st.session_state.messages):
             if isinstance(event, SourceEvent):
-                for i, doc in enumerate(event.context):
+                for i, doc in enumerate(event.content):
                     with st.expander(f"Source #{i + 1}"):
                         st.markdown(doc.page_content)
             if isinstance(event, ChunkEvent):

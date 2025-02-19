@@ -10,9 +10,15 @@ from langchain_core.retrievers import BaseRetriever
 from langchain_core.vectorstores import InMemoryVectorStore
 from langchain_ollama import ChatOllama
 from langchain_text_splitters import RecursiveCharacterTextSplitter
+from langchain_chroma import Chroma
 
 from src.config import Config
+from src.config import configure_logging
 from src.file_loader import File
+from uuid import uuid4
+
+logger = configure_logging()  
+ 
 
 CONTEXT_PROMPT = """ 
 You're an expert in document analysis. Your task is to provide a brief, relevant context for a chunk of the following document.
@@ -45,7 +51,7 @@ text_splitter = RecursiveCharacterTextSplitter(
 )
 
 def create_llm() -> ChatOllama:
-    return ChatOllama(model=Config.Preprocessing.LLM, tempoerature=0, keep_alive=1)
+    return ChatOllama(model=Config.Preprocessing.LLM, temperature=0, keep_alive=1)
 
 def create_embeddings() -> FastEmbedEmbeddings:
     return FastEmbedEmbeddings(model_name=Config.Preprocessing.EMBEDDING_MODEL)
@@ -55,21 +61,31 @@ def create_reranker() -> FlashrankRerank:
         model=Config.Preprocessing.RERANKER, top_n=Config.Chatbot.N_CONTEXT_RESULTS
     )
 
+def create_or_get_vectorstore() -> Chroma:
+    return Chroma(
+        collection_name=Config.VectorStore.COLLECTION_NAME,
+        embedding_function=create_embeddings(),
+        persist_directory=Config.Path.DB_DIR.as_posix(),  # Where to save data locally, remove if not necessary
+    )
+
 def _generate_context(llm: ChatOllama, document: str, chunk: str) -> str:
     """Generates additional context for a chunk of text given a broader document."""
-    messages = CONTEXT_PROMPT.format_messages(document=document, chunk=chunk)
+    messages = CONTEXT_PROMPT.format(document=document, chunk=chunk)
     response = llm.invoke(messages)
     return(response.content)
      
 
 def _create_chunks(document: Document) -> List[Document]:
     """Split the document into chunks and add context."""
+    logger.info("Chunking document") 
     chunks = text_splitter.split_documents([document])
+    logger.info(f"Generated {len(chunks)} chunks")
     if not Config.Preprocessing.CONTEXTUALIZE_CHUNKS:
         return chunks
     llm = create_llm()
     contextual_chunks = []
-    for chunk in chunks:
+    for i, chunk in enumerate(chunks):
+        logger.info(f"Creating context for chunk {i}") 
         context = _generate_context(llm, document.page_content, chunk.page_content)
         chunk_with_context = f"{context}\n\n{chunk.page_content}"
         contextual_chunks.append(Document(page_content=chunk_with_context, metadata=chunk.metadata))
@@ -85,9 +101,15 @@ def ingest_files(files: List[File]) -> BaseRetriever:
         chunks.extend(_create_chunks(document))
 
     # Builing retriever
-    semantic_retriever = InMemoryVectorStore.from_documents(
-         chunks, create_embeddings()
-    ).as_retriever(search_kwargs={"k": Config.Preprocessing.N_SEMANTIC_RESULTS})
+    logger.info("Creating embeddings") 
+    vector_store = create_or_get_vectorstore()
+    uuids = [str(uuid4()) for _ in range(len(chunks))]
+    vector_store.add_documents(documents=chunks, ids=uuids)
+    semantic_retriever = vector_store.as_retriever(search_kwargs={"k": Config.Preprocessing.N_SEMANTIC_RESULTS})
+
+    # semantic_retriever = InMemoryVectorStore.from_documents(
+    #      chunks, create_embeddings()
+    # ).as_retriever(search_kwargs={"k": Config.Preprocessing.N_SEMANTIC_RESULTS})
 
     bm25_retriever = BM25Retriever.from_documents(chunks)
     bm25_retriever.k = Config.Preprocessing.N_BM25_RESULTS

@@ -119,7 +119,7 @@ class Chatbot:
                 {
                     "question": state["question"],
                     "context": self._format_docs(state["context"]), 
-                    "chart_history": state["chat_history"]
+                    "chat_history": state["chat_history"]
                 }
         )
         answer = self.llm.invoke(messages)
@@ -171,7 +171,7 @@ class Chatbot:
     def ask(
             self, prompt: str, chat_history: List[Message]
     ) -> Iterable[SourceEvent | ChunkEvent | FinalAnswerEvent]:
-        for event in self._ask_model(prompt, chat_history):
+        for event in self.ask_model(prompt, chat_history):
             yield event
             if isinstance(event, FinalAnswerEvent):
                 response = _remove_thinking_from_message("".join(event.content))
